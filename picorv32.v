@@ -313,16 +313,6 @@ module picorv32 #(
 	reg        pcpi_int_wait;
 	reg        pcpi_int_ready;
 
-	// //Output of vector operation
-	// wire 	     pcpi_vec_wr;
-	// wire [31:0]  pcpi_vec_rd;
-	// wire		 pcpi_vec_wait;
-	// wire		 pcpi_vec_ready;
-	// wire 		 vec_result_ready;
-	// reg [511:0]  vec_result; //To concatenate the output of co-processor for vector instrns
-	
-	// reg [511:0] valu_out; //To store vector operation output
-
 
 	generate
   	if (ENABLE_FAST_MUL) begin
@@ -1470,15 +1460,8 @@ module picorv32 #(
 	reg [31:0] cpuregs_wrdata;
 	reg [31:0] cpuregs_rs1;
 	reg [31:0] cpuregs_rs2;
-	// reg [511:0] vecregs_rs1;
-	// reg [511:0] vecregs_rs2;
 	reg [regindex_bits-1:0] decoded_rs;
-	/*
-	>>> for i in range(16):
-...     print "valu_out["+str((16-i)*32-1)+":"+str((15-i)*32)+"]= vecregs_rdata1["+str((16-i)*32-1)+":"+str((15-i)*32)+"]+vecregs_rdata2["+str((16-i)*32-1)+":"+str((15-i)*32)+"];",
-... 
-
-	*/
+	
 		
 
 	always @* begin
@@ -1579,25 +1562,6 @@ module picorv32 #(
 `endif
 
 	assign launch_next_insn = cpu_state == cpu_state_fetch && decoder_trigger && (!ENABLE_IRQ || irq_delay || irq_active || !(irq_pending & ~irq_mask));
-
-// //For vector instructions
-// 	reg [5:0] vecldstrcnt;
-// 	reg [5:0] vecreadcnt;
-	// reg [511:0] vreg_op1;  //Data from v1 for all vector instr
-	// reg [511:0] vreg_op2;  //Data from v2 for all vector instr
-// 	reg [31:0] vtempmem[0:15];	
-// 	reg is_vls; //is vector load store to make the load store behave in a different way
-// 	wire [31:0] vecregs_rdata1_mpux[0:15];
-
-// 	genvar i_iter;
-// 	generate
-// 		for(i_iter=15;i_iter>=0;i_iter=i_iter-1)
-// 			assign vecregs_rdata1_mpux[15-i_iter] = {vecregs_rdata1[(i_iter+1)*32 -1:i_iter*32]};
-// 	endgenerate
-// 	reg [10:0] v_membits; //Contains the nuber of bits to be loaded from memory
-// 	integer vtempinit;
-// 	wire [511:0] vreg_op1X;
-// 	assign vreg_op1X = {vtempmem[0],vtempmem[1],vtempmem[2] ,vtempmem[3] ,vtempmem[4] ,vtempmem[5] ,vtempmem[6] ,vtempmem[7], vtempmem[8],vtempmem[9],vtempmem[10],vtempmem[11],vtempmem[12],vtempmem[13],vtempmem[14],vtempmem[15]};
 
 	//CPU states ----> Main part in the whole code						
 	always @(posedge clk) begin
@@ -1828,11 +1792,7 @@ module picorv32 #(
 									pcpi_valid <= 0;
 									reg_out <= pcpi_int_rd;
 									latched_store <= pcpi_int_wr;
-									cpu_state <= cpu_state_fetch;
-									// //Newly added for vector instrns
-									// latched_vstore <= 1; 
-									// latched_branch <= 0;  //Not a branch instruction
-									// latched_stalu  <= 1; //To notify that alu data should be stored in rd
+									cpu_state <= cpu_state_fetch;							
 								end 
 								else if (CATCH_ILLINSN && (pcpi_timeout || instr_ecall_ebreak)) begin
 									pcpi_valid <= 0;
@@ -1986,33 +1946,7 @@ module picorv32 #(
 						mem_do_rinst <= mem_do_prefetch;   //not understood
 						cpu_state <= cpu_state_exec;
 					end
-					// instr_vload && !instr_trap: begin
-					// 	reg_op1 <= cpuregs_rs1-4;
-					// 	cpu_state <= cpu_state_ldmem;
-					// 	mem_do_rinst <= mem_do_prefetch;  //not understood
-					// 	vecldstrcnt <= 16;//512/32
-					// 	vecreadcnt <=0;
-					// 	is_vls <= 1;
-					// 	vecregs_waddr = decoded_rd;
-		 			// 	vecregs_raddr1 = decoded_rs1;
-		 			// 	vecregs_raddr2 = decoded_rs2;
-					// 	for(vtempinit = 0; vtempinit < 16; vtempinit = vtempinit + 1)
-					// 			vtempmem[vtempinit] = 0;
-					// 	//Updating mem_bits depending on vcsr_vl and v_enc_width(i.e instr[14:12])
-					// 	v_membits <= vcsr_vl * ((v_enc_width==3'b000)? 8:(v_enc_width==3'b101)?16:(v_enc_width==3'b110)?32:SEW); 
-					// end
-					// instr_vstore && !instr_trap: begin
-					// 	//vecregs_waddr = decoded_rd;
-		 			// 	vecregs_raddr1 = decoded_rd;
-		 			// 	//vecregs_raddr2 = decoded_rs2;
-					// 	vecldstrcnt <= 16;//512/32
-					// 	is_vls <= 1;
-					// 	reg_op1 <= cpuregs_rs1-4;
-					// 	cpu_state <= cpu_state_stmem;
-					// 	mem_do_rinst <= 1;
-					// 	v_membits <= vcsr_vl * ((v_enc_width==3'b000)? 8:(v_enc_width==3'b101)?16:(v_enc_width==3'b110)?32:SEW); 
-					// end
-					
+									
 					default: begin
 						`debug($display("LD_RS1: %2d 0x%08x", decoded_rs1, cpuregs_rs1);)
 						reg_op1 <= cpuregs_rs1;
@@ -2067,10 +2001,6 @@ module picorv32 #(
 							reg_out <= pcpi_int_rd;
 							latched_store <= pcpi_int_wr;
 							cpu_state <= cpu_state_fetch;
-							// //Newly added for vector instrns
-							// latched_vstore <= 1; 
-							// latched_branch <= 0;  //Not a branch instruction
-							// latched_stalu  <= 1; //To notify that alu data should be stored in rd
 						end else
 						if (CATCH_ILLINSN && (pcpi_timeout || instr_ecall_ebreak)) begin
 							pcpi_valid <= 0;
@@ -2173,37 +2103,7 @@ module picorv32 #(
 						decoder_trigger <= 1;
 						decoder_pseudo_trigger <= 1;
 					end
-				end
-				// if (!mem_do_prefetch || mem_done) begin //&& is_vls
-				// 	if (!mem_do_wdata && v_membits!=0) begin
-				// 		if(v_membits%32==0) begin
-				// 			mem_wordsize <= 0;
-				// 			v_membits <= v_membits -32;
-				// 		end
-							
-				// 		else if(v_membits%16==0)begin
-				// 			mem_wordsize <= 1;
-				// 			v_membits <= v_membits -16;
-				// 		end
-				// 		else begin
-				// 			mem_wordsize <= 2;
-				// 			v_membits <= v_membits -8;
-				// 		end
-
-				// 		reg_op1 <= reg_op1 + 4;
-
-				// 		reg_op2 <= vecregs_rdata1_mpux[16-vecldstrcnt];
-				// 		vecldstrcnt <= vecldstrcnt - 1;
-						
-				// 		set_mem_do_wdata = 1;
-				// 	end
-				// 	if (!mem_do_prefetch && mem_done && v_membits == 0) begin
-				// 		cpu_state <= cpu_state_fetch;
-				// 		decoder_trigger <= 1;
-				// 		decoder_pseudo_trigger <= 1;
-				// 		// is_vls <= 0;
-				// 	end
-				// end
+				end				
 			end
 
 			cpu_state_ldmem: begin
@@ -2240,61 +2140,7 @@ module picorv32 #(
 						decoder_trigger <= 1;
 						decoder_pseudo_trigger <= 1;
 						cpu_state <= cpu_state_fetch;
-					end
-					// //For vector instructions
-					// if (!mem_do_rdata && is_vls && vecldstrcnt!=0) begin
-					// 	if(v_membits%32==0) begin
-					// 		mem_wordsize <= 0;
-					// 		v_membits <= v_membits -32;
-					// 	end
-							
-					// 	else if(v_membits%16==0)begin
-					// 		mem_wordsize <= 1;
-					// 		v_membits <= v_membits -16;
-					// 	end
-					// 	else begin
-					// 		mem_wordsize <= 2;
-					// 		v_membits <= v_membits -8;
-					// 	end
-					// 	reg_op1 <= reg_op1 + 4;
-					// 	set_mem_do_rdata = 1;
-					// 	vecldstrcnt <= vecldstrcnt -1;
-					// end
-					// if (!mem_do_prefetch && mem_done && is_vls) begin
-					// 	vtempmem[vecreadcnt] <= mem_rdata_word;
-					// 	vecreadcnt <= vecreadcnt+1;
-					// 	if(v_membits==0)begin
-					// 		case(vecreadcnt)
-					// 		0:vreg_op1 <= {mem_rdata_word,vreg_op1[(15)*32-1:0]};
-					// 		1:vreg_op1 <= {vreg_op1X[511:511-1*32+1],mem_rdata_word,vreg_op1X[(14)*32-1:0]};
-					// 		2:vreg_op1 <= {vreg_op1X[511:511-2*32+1],mem_rdata_word,vreg_op1X[(13)*32-1:0]};
-					// 		3:vreg_op1 <= {vreg_op1X[511:511-3*32+1],mem_rdata_word,vreg_op1X[(12)*32-1:0]};
-					// 		4:vreg_op1 <= {vreg_op1X[511:511-4*32+1],mem_rdata_word,vreg_op1X[(11)*32-1:0]};
-					// 		5:vreg_op1 <= {vreg_op1X[511:511-5*32+1],mem_rdata_word,vreg_op1X[(10)*32-1:0]};
-					// 		6:vreg_op1 <= {vreg_op1X[511:511-6*32+1],mem_rdata_word,vreg_op1X[(9)*32-1:0]};
-					// 		7:vreg_op1 <= {vreg_op1X[511:511-7*32+1],mem_rdata_word,vreg_op1X[(8)*32-1:0]};
-					// 		8:vreg_op1 <= {vreg_op1X[511:511-8*32+1],mem_rdata_word,vreg_op1X[(7)*32-1:0]};
-					// 		9:vreg_op1 <= {vreg_op1X[511:511-9*32+1],mem_rdata_word,vreg_op1X[(6)*32-1:0]};
-					// 		10:vreg_op1 <= {vreg_op1X[511:511-10*32+1],mem_rdata_word,vreg_op1X[(5)*32-1:0]};
-					// 		11:vreg_op1 <= {vreg_op1X[511:511-11*32+1],mem_rdata_word,vreg_op1X[(4)*32-1:0]};
-					// 		12:vreg_op1 <= {vreg_op1X[511:511-12*32+1],mem_rdata_word,vreg_op1X[(3)*32-1:0]};
-					// 		13:vreg_op1 <= {vreg_op1X[511:511-13*32+1],mem_rdata_word,vreg_op1X[(2)*32-1:0]};
-					// 		14:vreg_op1 <= {vreg_op1X[511:511-14*32+1],mem_rdata_word,vreg_op1X[(1)*32-1:0]};
-					// 		15:vreg_op1 <= {vreg_op1X[511:511-15*32+1],mem_rdata_word};
-					// 		endcase
-							
-					// 		decoder_trigger <= 1;
-					// 		decoder_pseudo_trigger <= 1;
-					// 		cpu_state <= cpu_state_fetch;
-					// 		is_vls <= 0;
-					// 	end
-
-					// 	else begin
-					// 		decoder_trigger <= 0;
-					// 		decoder_pseudo_trigger <= 0;
-					// 	end
-
-					// end
+					end					
 				end
 			end
 		endcase

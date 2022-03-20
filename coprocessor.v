@@ -3,8 +3,6 @@
  * picorv32_pcpi_vec: A PCPI core that implements the vector instructions
  ***************************************************************/
 module picorv32_pcpi_vec #(
-	//Bus width between ALU unit and coprocessor
-	parameter [7:0] BUS_WIDTH = 8'B00100000, //Default is 32
 	parameter [31:0] vlen = 32'h00000200 //No of bits in vector 
 )(
 	input clk, resetn,
@@ -38,7 +36,6 @@ module picorv32_pcpi_vec #(
 	localparam p_instr_vdotvarp = 8'h05 ;
 
 	localparam [10:0] alu_reg_len = 512;  //Alu register length used for alu operations
-	localparam [4:0] no_of_alus = 16;
 	reg [31:0] reg_op1; //stores the value of pcpi_cpurs1
 	reg [31:0] reg_op2; //stores the value of pcpi_cpurs2
 
@@ -54,15 +51,11 @@ module picorv32_pcpi_vec #(
 
 
 	//Memory Interface
-	reg [1:0] mem_state;
 	reg [1:0] mem_wordsize; //To tell whether to read/write whole word or a part of the word
 	reg [31:0] mem_rdata_word; // //Stores the data depending on mem_wordsize from mem_rdata 
 
 	reg mem_do_rdata; //Flag to read data
 	reg mem_do_wdata; //Flag to write data
-
-	wire mem_busy = |{mem_do_rdata, mem_do_wdata};
-
 	reg mem_str_ready, mem_str_ready2;  //Used as the ready signal for strided load instruction
 
 //memory interface 
@@ -799,7 +792,6 @@ end
 	localparam cpu_state_fetch   = 8'b10000000;
 	localparam cpu_state_ld_rs1  = 8'b01000000;
 	localparam cpu_state_exec    = 8'b00100000;
-	// localparam cpu_state_ld_rs2 = 8'b00010000;
 	localparam cpu_state_stmem   = 8'b00010000;
 	localparam cpu_state_stmem2  = 8'b00001000;
     localparam cpu_state_ldmem   = 8'b00000100;
@@ -857,7 +849,6 @@ end
 					reg_op1 <= pcpi_cpurs1;
 					reg_op2 <= pcpi_cpurs2;
 					str_bits <= vcsr_vl*pcpi_cpurs2*8;
-					// latched_vstore <= 0;  //latched_vstore will be 1 for 1 clk cycle
 					latched_stalu <= 0;
 					mem_wordsize <= 0; //Has to write/read 32 bit data
 					cpu_state <= cpu_state_ld_rs1;
